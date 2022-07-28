@@ -285,14 +285,24 @@ mount_partition()
 
 rsync_file_system()
 	{
-	src_dir="$1"
-	dst_dir="$2"
+	part_num="$1"
+	src_dir="$2"
+	dst_dir="$3"
 
-	qprintf "  => rsync $1 $2 $3 ..."
+	qprintf "  => rsync $1 $2 $3 $4..."
+
+	effective_options=${rsync_options}
+	fstype=${src_fs_type[part_num]}
+	if [[ "$fstype" == *"fat"* ]]
+	then
+		# On FAT, owner and group are meaningless, so prevent
+		# sync errors by not syncing those
+		effective_options=${effective_options} --no-owner --no-group
+	fi
 
 	if [ "$3" == "with-root-excludes" ]
 	then
-		rsync $rsync_options --delete \
+		rsync $effective_options --delete \
 			$exclude_useropt \
 			$exclude_swapfile \
 			--exclude '.gvfs' \
@@ -306,7 +316,7 @@ rsync_file_system()
 		$src_dir \
 		$dst_dir
 	else
-		rsync $rsync_options --delete \
+		rsync $effective_options --delete \
 			$exclude_useropt \
 			--exclude '.gvfs' \
 			--exclude 'lost\+found/*' \
@@ -1681,7 +1691,8 @@ do
 		mount_partition ${src_device[p]} $clone_src ""
 		mount_partition $dst_dev $clone "$clone_src"
 		unmount_list="$clone_src $clone"
-		rsync_file_system "${clone_src}/" "${clone}" ""
+		rsync_file_system "${p}" "${clone_src}/" "${clone}" ""
+
 		unmount_list "$unmount_list"
 	fi
 done
@@ -1699,7 +1710,7 @@ fi
 mount_partition $dst_root_dev $clone ""
 unmount_list="$clone"
 
-rsync_file_system "//" "$clone" "with-root-excludes"
+rsync_file_system "$root_part_num" "//" "$clone" "with-root-excludes"
 
 for ((p = 1; p <= n_src_parts; p++))
 do
@@ -1725,7 +1736,7 @@ do
 		fi
 
 		mount_partition "$dst_dev" "$dst_dir" "$unmount_list"
-		rsync_file_system "${src_mounted_dir[p]}/" "${dst_dir}" ""
+		rsync_file_system "${p}" "${src_mounted_dir[p]}/" "${dst_dir}" ""
 		unmount_list="$dst_dir $unmount_list"
 	fi
 done
