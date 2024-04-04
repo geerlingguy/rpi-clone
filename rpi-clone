@@ -62,8 +62,8 @@ confirm()
 	}
 
 # sfdisk is in fdisk package
-commands="rsync parted fdisk findmnt column fsck.vfat"
-packages="rsync parted util-linux mount bsdmainutils dosfstools"
+commands="rsync parted fdisk findmnt column fsck.vfat uuidgen"
+packages="rsync parted util-linux mount bsdmainutils dosfstools uuid-runtime"
 need_packages=""
 
 idx=1
@@ -569,7 +569,18 @@ ext_label()
 
 change_disk_id()
 	{
-	new_id=$(od -A n -t x -N 4 /dev/urandom | tr -d " ")
+	case "$src_disk_table_type" in
+		msdos)
+			new_id=$(od -A n -t x -N 4 /dev/urandom | tr -d " ")
+			;;
+		gpt)
+			new_id=$(uuidgen)
+			;;
+		*)
+			qecho "  Unsupported partition table, cannot change Disk ID."
+			return 1
+			;;
+	esac
 	sfdisk --disk-id "$1" "$new_id"
 	}
 
@@ -652,6 +663,8 @@ src_df_table=$(echo "$tmp" | sed "s/root/$dev/")
 n_src_parts=$(echo "$src_partition_table" | tail -n 1 | cut -d ":" -f 1)
 src_disk_size=$(echo "$src_partition_table" \
 				| grep "^/dev/$src_disk" | cut -d ":" -f 2 | tr -d 's')
+src_disk_table_type=$(echo "$src_partition_table" \
+				| grep "^/dev/$src_disk" | cut -d ":" -f 6 )
 src_disk_ID=$(sfdisk --disk-id "/dev/$src_disk")
 
 src_mount_table=$(findmnt -o source,target -n -l \
@@ -1430,6 +1443,8 @@ Use -U for unattended even if initializing.
 	part="${src_part_base}$n_image_parts"
 	sfd1=$(echo "$sfd0" | sed "\/dev\/$part/s/size=[^,]*,//")
 
+	# Strip gpt last-lba marker, if any, that will needlessly limit to the src disk size.
+	sfd1=$(echo "$sfd1" | grep -v '^last-lba: ')
 	# Strip label-id, to let sfdisk generate a new disk id
 	sfd1=$(echo "$sfd1" | grep -v '^label-id: ')
 
