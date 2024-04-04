@@ -652,9 +652,7 @@ src_df_table=$(echo "$tmp" | sed "s/root/$dev/")
 n_src_parts=$(echo "$src_partition_table" | tail -n 1 | cut -d ":" -f 1)
 src_disk_size=$(echo "$src_partition_table" \
 				| grep "^/dev/$src_disk" | cut -d ":" -f 2 | tr -d 's')
-
-line=$(fdisk -l /dev/$src_disk | grep "Disk identifier:")
-src_disk_ID=${line#*x}
+src_disk_ID=$(sfdisk --disk-id "/dev/$src_disk")
 
 src_mount_table=$(findmnt -o source,target -n -l \
 				| grep -e "^/dev/$src_disk" -e "^$src_root_dev" | tr -s " ")
@@ -1634,8 +1632,7 @@ else
 	start_sec=$(date '+%s')
 fi
 
-line=$(fdisk -l /dev/$dst_disk | grep "Disk identifier:")
-dst_disk_ID=${line#*x}
+dst_disk_ID=$(sfdisk --disk-id "/dev/$dst_disk")
 if [ "$dst_disk_ID" == "$src_disk_ID" ]
 then
 	qecho "Destination disk has same Disk ID as source, changing it."
@@ -1645,8 +1642,7 @@ then
 	partprobe "/dev/$dst_disk"
 	sleep 2
 
-	line=$(fdisk -l /dev/$dst_disk | grep "Disk identifier:")
-	dst_disk_ID=${line#*x}
+	dst_disk_ID=$(sfdisk --disk-id "/dev/$dst_disk")
 	if [ "$dst_disk_ID" == "$src_disk_ID" ]
 	then
 		qecho "  Failed to set a new Disk ID."
