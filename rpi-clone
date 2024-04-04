@@ -1426,6 +1426,9 @@ Use -U for unattended even if initializing.
 	part="${src_part_base}$n_image_parts"
 	sfd1=$(echo "$sfd0" | sed "\/dev\/$part/s/size=[^,]*,//")
 
+	# Strip label-id, to let sfdisk generate a new disk id
+	sfd1=$(echo "$sfd1" | grep -v '^label-id: ')
+
 	if ((ext_part_num > 0 && !force_2_parts))
 	then
 		part="${src_part_base}$ext_part_num"
@@ -1466,17 +1469,11 @@ Use -U for unattended even if initializing.
 		fi
 	done
 	printf "\n    Resize success.\n"
-	printf "  Changing destination Disk ID ..."
-	sync
-	sleep 2
 
-	new_id=$(od -A n -t x -N 4 /dev/urandom | tr -d " ")
-	qprintf "x\ni\n0x$new_id\nr\nw\nq\n" | fdisk /dev/$dst_disk > /dev/null
 	sync
 	sleep 2
 	partprobe "/dev/$dst_disk"
 	sleep 2
-	echo ""
 
 	for ((p = n_image_parts + 1; p <= n_src_parts; p++))
 	do
