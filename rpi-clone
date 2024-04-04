@@ -567,6 +567,12 @@ ext_label()
 	printf -v "${4}" "%s" "$label_arg"
 	}
 
+change_disk_id()
+	{
+	new_id=$(od -A n -t x -N 4 /dev/urandom | tr -d " ")
+	sfdisk --disk-id "$1" "$new_id"
+	}
+
 get_src_disk()
 	{
 	partition=${1#/dev/}
@@ -1463,8 +1469,7 @@ Use -U for unattended even if initializing.
 			printf "    Try running $PGM again.\n\n"
 
 			# Don't let dst disk keep source disk ID.  Can lead to remounts.
-			new_id=$(od -A n -t x -N 4 /dev/urandom | tr -d " ")
-			qprintf "x\ni\n0x$new_id\nr\nw\nq\n" | fdisk /dev/$dst_disk > /dev/null
+			change_disk_id "/dev/$dst_disk"
 			exit 1
 		fi
 	done
@@ -1634,8 +1639,7 @@ dst_disk_ID=${line#*x}
 if [ "$dst_disk_ID" == "$src_disk_ID" ]
 then
 	qecho "Destination disk has same Disk ID as source, changing it."
-	new_id=$(od -A n -t x -N 4 /dev/urandom | tr -d " ")
-	qprintf "x\ni\n0x$new_id\nr\nw\nq\n" | fdisk /dev/$dst_disk | grep changed
+	change_disk_id "/dev/$dst_disk"
 	sync
 	sleep 2
 	partprobe "/dev/$dst_disk"
