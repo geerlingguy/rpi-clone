@@ -998,7 +998,7 @@ fi
 export clone=$(mktemp --tmpdir --directory rpi-clone-dst.XXXXXX)
 export clone_src=$(mktemp --tmpdir --directory rpi-clone-src.XXXXXX)
 
-if ! [ -n "$clone" -a -d "$clone" -a -n "$clone_src" -a -d "$clone_src" ]
+if [[ -z "$clone" || ! -d "$clone" || -z "$clone_src" || ! -d "$clone_src" ]]
 then
 	echo "Failed to create temporary mount directories"
 	echo "Aborting!"
@@ -1007,8 +1007,9 @@ fi
 
 # Make sure we cleanup on exit, regardless of how we exit
 cleanup() {
-	umount "$clone" 2> /dev/null
-	umount "$clone_src" 2> /dev/null
+	echo "Cleaning up mounts, this might produce errors if they were already unmounted" >> "$clone_log"
+	umount "$clone" &>> "$clone_log"
+	umount "$clone_src" &>> "$clone_log"
 	rmdir "$clone"
 	rmdir "$clone_src"
 }
