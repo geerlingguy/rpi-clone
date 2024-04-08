@@ -1010,8 +1010,8 @@ cleanup() {
 	echo "Cleaning up mounts, this might produce errors if they were already unmounted" >> "$clone_log"
 	umount "$clone" &>> "$clone_log"
 	umount "$clone_src" &>> "$clone_log"
-	rmdir "$clone"
-	rmdir "$clone_src"
+	rmdir "$clone" &>> "$clone_log"
+	rmdir "$clone_src" &>> "$clone_log"
 }
 trap cleanup EXIT
 
