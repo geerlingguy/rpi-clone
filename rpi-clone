@@ -1516,7 +1516,7 @@ Use -U for unattended even if initializing.
 		then
 			ext_label $p "$fs_type" "-L" label
 			printf "  => mkfs -t $mkfs_type $label $dst_dev ..."
-			yes | mkfs -t $mkfs_type $label $dst_dev &>> /tmp/$PGM-output
+			yes | mkfs -t $mkfs_type "$label" "$dst_dev" &>> /tmp/$PGM-output
 			echo ""
 		else
 			if [ "$fs_type" == "swap" ]
@@ -1529,7 +1529,7 @@ Use -U for unattended even if initializing.
 				then
 					ext_label $p $fs_type "-L" label
 					printf "  => mkfs -t $mkfs_type $label $dst_dev ..."
-					yes | mkfs -t $mkfs_type $label $dst_dev &>> /tmp/$PGM-output
+					yes | mkfs -t $mkfs_type "$label" "$dst_dev" &>> /tmp/$PGM-output
 					echo ""
 					if ((p == n_image_parts))
 					then
@@ -1680,7 +1680,7 @@ do
 		if [ "$label" != "" ]
 		then
 			qecho "     e2label $dst_dev $label"
-			e2label $dst_dev $label
+			e2label $dst_dev "$label"
 		fi
 
 		mount_partition ${src_device[p]} $clone_src ""
@@ -1726,7 +1726,7 @@ do
 		if [ "$label" != "" ]
 		then
 			qecho "     e2label $dst_dev $label"
-			e2label $dst_dev $label
+			e2label $dst_dev "$label"
 		fi
 
 		mount_partition "$dst_dev" "$dst_dir" "$unmount_list"
