@@ -602,7 +602,7 @@ mkfs_label()
 		vfat|msdos|exfat|fat16|fat32)
 			label_flag=-n
 			;;
-		ext2|ext3|ext4|ntfs|xfs)
+		ext2|ext3|ext4|ntfs|xfs|btrfs)
 			label_flag=-L
 			;;
 		hfs|hfsplus)
@@ -630,14 +630,31 @@ change_label()
 	dev=$3
 
 	dst_part_label "$pnum" "$fs_type" label
-	if [ "$label" != "" ] && [[ "$fs_type" == *"ext"* ]]
+	if [ "$label" != "" ] 
 	then
-		echo "     e2label $dev $label"
-		e2label $dev $label
-	elif [ "$label" != "" ] && [[ "$fs_type" == *"fat"* ]]
-	then
-		echo "     fatlabel $dev $label"
-		fatlabel $dev $label
+		case "$fs_type" in
+			vfat|msdos|exfat|fat16|fat32)
+				echo "     fatlabel $dev $label"
+				fatlabel $dev $label
+				;;
+			ext2|ext3|ext4|ntfs|xfs)
+				echo "     e2label $dev $label"
+				e2label $dev $label
+				;;
+			hfs|hfsplus)
+				echo "     Unhandled label for $dev $label"
+				;;
+			reiserfs)
+				echo "     Unhandled label for $dev $label"
+				;;
+			btrfs)
+				echo "     btrfs filesystem label $dev $label"
+				btrfs filesystem label $dev $label
+				;;
+			*)
+				echo "     Unhandled label for $dev $label"
+				;;
+		esac
 	fi
 	}
 
