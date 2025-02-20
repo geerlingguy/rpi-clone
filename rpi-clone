@@ -1596,15 +1596,20 @@ Use -U for unattended even if initializing.
 			continue
 		fi
 
-		if [ "$fs_type" == "fat16" ]
-		then
-			mkfs_type="vfat"
-		elif [ "$fs_type" == "fat32" ]
-		then
-			mkfs_type="vfat -F 32"
-		else
-			mkfs_type=$fs_type
-		fi
+		case "$fs_type" in
+			fat16)
+				mkfs_type="vfat"
+				;;
+			fat32)
+				mkfs_type="vfat -F 32"
+				;;
+			btrfs)
+				mkfs_type="btrfs -f"
+				;;
+			*)
+				mkfs_type=$fs_type
+				;;
+		esac
 
 		if [ "${src_mounted_dir[p]}" == "/boot" ] && ((p == 1))
 		then
