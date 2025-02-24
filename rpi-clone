@@ -1858,11 +1858,6 @@ rm -f $clone/etc/udev/rules.d/70-persistent-net.rules
 
 dst_root_vol_name=${dst_label[$root_part_num]}
 
-if [ "$dst_root_vol_name" = "" ]
-then
-	dst_root_vol_name="no label"
-fi
-
 if ((have_grub))
 then
 	qecho "grub-install --root-directory=$clone /dev/$dst_disk"
