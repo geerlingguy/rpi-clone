@@ -48,6 +48,10 @@ only Debian packages with apt-get.
 ```
 $ curl https://raw.githubusercontent.com/geerlingguy/rpi-clone/master/install | sudo bash
 ```
+Default installation directory is /usr/local/sbin. If another directory should be used pass the installation directory as a parameter.
+```
+$ curl https://raw.githubusercontent.com/geerlingguy/rpi-clone/master/install | sudo bash -s -- {installationDirectory}
+```
 
 > Alternatively, you can manually install from source if you don't trust the `curl | sudo bash` install script:
 > 
