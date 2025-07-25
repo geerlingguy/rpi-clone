@@ -576,7 +576,7 @@ dst_part_label()
 		rep="${ext_label: -1}"
 		if [ "$rep" == "#" ]
 		then
-			label="${ext_label:: -1}"
+			label="${ext_label:: -1}$pnum"
 		elif ((pnum == root_part_num))
 		then
 			label="$ext_label"
