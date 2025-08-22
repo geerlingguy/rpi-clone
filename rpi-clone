@@ -1631,7 +1631,6 @@ Use -U for unattended even if initializing.
 			fi
 		fi
 	done
-	ext_label=""
 else
 	qecho "== SYNC $src_disk file systems to $dst_disk =="
 	print_sync_actions
