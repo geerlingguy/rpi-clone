@@ -10,9 +10,9 @@
 # This updated code is located in a fork of Bill Wilson's git repository
 # at https://github.com/geerlingguy/rpi-clone
 
-version=2.0.25
+version=2.0.26
 
-# prefix debug statements with line numbers when -x is used 
+# prefix debug statements with line numbers when -x is used
 declare -r PS4='|${LINENO}> \011${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 
 # setup trusted paths for dependancies (like rsync, grub, fdisk, etc)
@@ -276,17 +276,23 @@ unmount_list()
 
 mount_partition()
 	{
-	qecho "  Mounting $1 on $2"
 
-	if ! mount $1 $2
-	then
-		echo "    Mount failure of $1 on $2."
-		if [ "$3" != "" ]
+	if ! findmnt &>/dev/null "$1"; then
+	
+		qecho "  Mounting $1 on $2"
+
+		if ! mount $1 $2
 		then
-			unmount_list $3
+			echo "    Mount failure of $1 on $2."
+			if [ "$3" != "" ]
+			then
+				unmount_list $3
+			fi
+			echo "Aborting!"
+			exit 1
 		fi
-		echo "Aborting!"
-		exit 1
+	else 
+		qecho "  Mounted $1 on $2 already"
 	fi
 	}
 
@@ -297,17 +303,11 @@ rsync_file_system()
 
 	qprintf "  => rsync $1 $2 $3 ..."
 
-	# make sure the partition is mounted
-	# sometimes it happens on RPi5 /boot is no longer mounted and then
-	# the cloned boot partition will be empty
 	if ! findmnt "$src_dir" &>/dev/null; then
-		if ! mount "$src_dir"; then
-			echo "??? Remount failure of $1."
-			echo "Aborting!"
-			exit 1
-		else
-			qecho "  Remounting $1"
-		fi
+		qecho "Unexpected error occured in line $LINENO"
+		qecho "Source directory $src_dir not mounted"
+		echo "Aborting!"
+		exit 1
 	fi
 
 	if [ "$3" == "with-root-excludes" ]
@@ -632,11 +632,11 @@ change_label()
 	dst_part_label "$pnum" "$fs_type" label
 	if [ "$label" != "" ] && [[ "$fs_type" == *"ext"* ]]
 	then
-		echo "     e2label $dev $label"
+		echo "  e2label $dev $label"
 		e2label $dev $label
 	elif [ "$label" != "" ] && [[ "$fs_type" == *"fat"* ]]
 	then
-		echo "     fatlabel $dev $label"
+		echo "  fatlabel $dev $label"
 		fatlabel $dev $label
 	fi
 	}
@@ -656,6 +656,8 @@ get_src_disk()
 	printf -v "${3}" "%s" "$num"
 	}
 
+
+echo $PGM Version: $version
 
 # ==== source (booted) disk info and default mount list
 #
@@ -1783,7 +1785,7 @@ do
 		dst_dev=/dev/${dst_part_base}${p}
 		fs_type=${src_fs_type[$p]}
 		change_label "$p" "$fs_type" "$dst_dev"
-
+		mount_partition ${src_device[p]} ${src_mounted_dir[p]} ""
 		mount_partition "$dst_dev" "$dst_dir" "$unmount_list"
 		rsync_file_system "${src_mounted_dir[p]}/" "${dst_dir}" ""
 		unmount_list="$dst_dir $unmount_list"
