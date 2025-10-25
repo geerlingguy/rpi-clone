@@ -32,26 +32,37 @@ cd $TMP_DIR
 installDir="${1:-$DEFAULT_INSTALLATION_DIR}"
 
 if [[ ! -d $installDir ]]; then
-       echo "Installation directory $installDir not found"
-       echo "Pass a valid installation directory as a parameter to $0"
-       exit 1
+    echo "Installation directory $installDir not found"
+    echo "Pass a valid installation directory as a parameter to $0"
+    exit 1
 fi
 
 echo "Installing $PACKAGE into $installDir ..."
 
 for file in $FILES_2_DOWNLOAD; do
-
-	echo -n "Downloading $file from $DOWNLOAD_REPOSITORY/$file ... "
-	http_code=$(curl -w "%{http_code}" -L -s $DOWNLOAD_REPOSITORY/$file -o $file)
-	(( $? )) && { echo "Curl failed"; exit 1; }
-	[[ $http_code != 200 ]] && { echo "http request failed with $http_code"; exit 1; }
-	echo "done"
-	echo -n "Installing $file into $installDir ... "
-	sudo chmod +x $file
-	(( $? )) && { echo "chmod failed"; exit 1; }
-	sudo mv $file $installDir
-	(( $? )) && { echo "mv failed"; exit 1; }
-	echo "done"
+    echo -n "Downloading $file from $DOWNLOAD_REPOSITORY/$file ... "
+    http_code=$(curl -w "%{http_code}" -L -s $DOWNLOAD_REPOSITORY/$file -o $file)
+    (($?)) && {
+        echo "Curl failed"
+        exit 1
+    }
+    [[ $http_code != 200 ]] && {
+        echo "http request failed with $http_code"
+        exit 1
+    }
+    echo "done"
+    echo -n "Installing $file into $installDir ... "
+    sudo chmod +x $file
+    (($?)) && {
+        echo "chmod failed"
+        exit 1
+    }
+    sudo mv $file $installDir
+    (($?)) && {
+        echo "mv failed"
+        exit 1
+    }
+    echo "done"
 
 done
 
