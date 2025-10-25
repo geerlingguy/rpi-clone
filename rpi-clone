@@ -557,8 +557,6 @@ get_src_disk() {
     printf -v "${3}" "%s" "$num"
 }
 
-echo $PGM Version: $version
-
 # ==== source (booted) disk info and default mount list
 #
 src_boot_dev=$(findmnt /boot -o source -n | grep "/dev/")
