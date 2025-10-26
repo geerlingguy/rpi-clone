@@ -557,6 +557,45 @@ get_src_disk() {
     printf -v "${3}" "%s" "$num"
 }
 
+change_disk_id() {
+    local disk=$1
+    local msg=${2:-}
+
+    if [ -n "$msg" ]; then
+        qecho "$msg"
+    fi
+
+    new_id=$(od -A n -t x -N 4 /dev/urandom | tr -d " ")
+    qprintf "x\ni\n0x$new_id\nr\nw\nq\n" | fdisk /dev/"$disk" > /dev/null
+
+    sync
+    sleep 2
+}
+
+find_extended_partition() {
+    local -r fdisk_table=$1
+    local -r dev=$(grep "Extended" <<< "${fdisk_table}" | awk '{print $1}')
+
+    if [ -n "${dev}" ]; then
+        echo "${dev: -1}"
+    else
+        echo "0"
+    fi
+}
+
+edit_disk_reference() {
+    local file=$1
+    local description=$2
+
+    if grep -q "$src_disk_ID" "$file"; then
+        qecho "Editing $description PARTUUID to use $dst_disk_ID"
+        sed -i "s/${src_disk_ID}/${dst_disk_ID}/g" "$file"
+    elif [ "$edit_fstab_name" != "" ] && grep -q "${src_part_base}" "$file"; then
+        qecho "Editing $description references from $src_part_base to $edit_fstab_name"
+        sed -i "s/${src_part_base}/${edit_fstab_name}/" "$file"
+    fi
+}
+
 # ==== source (booted) disk info and default mount list
 #
 src_boot_dev=$(findmnt /boot -o source -n | grep "/dev/")
@@ -630,13 +669,7 @@ Don't know how to partition the destination disk!
     exit 1
 fi
 
-line=$(echo "$src_fdisk_table" | grep "Extended")
-if [ "$line" != "" ]; then
-    dev=$(echo "$line" | cut -d " " -f 1)
-    ext_part_num="${dev: -1}"
-else
-    ext_part_num=0
-fi
+ext_part_num=$(find_extended_partition "$src_fdisk_table")
 
 for ((p = 1; p <= n_src_parts; p++)); do
     line=$(echo "$src_partition_table" | grep -e "^${p}:")
@@ -1022,13 +1055,7 @@ dst_root_dev=/dev/${dst_part_base}${root_part_num}
 dst_mount_table=$(findmnt -o source,target -n -l | grep "^/dev/$dst_disk" | tr -s " ")
 
 dst_fdisk_table=$(fdisk -l /dev/$dst_disk | grep "^/dev/")
-line=$(echo "$dst_fdisk_table" | grep "Extended")
-if [ "$line" != "" ]; then
-    dev=$(echo "$line" | cut -d " " -f 1)
-    ext_num="${dev: -1}"
-else
-    ext_num=0
-fi
+ext_num=$(find_extended_partition "$dst_fdisk_table")
 
 for ((p = 1; p <= n_dst_parts; p++)); do
     line=$(echo "$dst_partition_table" | grep -e "^${p}:")
@@ -1314,20 +1341,13 @@ Use -U for unattended even if initializing.
             printf "    Try running $PGM again.\n\n"
 
             # Don't let dst disk keep source disk ID.  Can lead to remounts.
-            new_id=$(od -A n -t x -N 4 /dev/urandom | tr -d " ")
-            qprintf "x\ni\n0x$new_id\nr\nw\nq\n" | fdisk /dev/$dst_disk > /dev/null
+            change_disk_id "$dst_disk"
             exit 1
         fi
     done
     printf "\n    Resize success.\n"
     printf "  Changing destination Disk ID ..."
-    sync
-    sleep 2
-
-    new_id=$(od -A n -t x -N 4 /dev/urandom | tr -d " ")
-    qprintf "x\ni\n0x$new_id\nr\nw\nq\n" | fdisk /dev/$dst_disk > /dev/null
-    sync
-    sleep 2
+    change_disk_id "$dst_disk"
     partprobe "/dev/$dst_disk"
     sleep 2
     echo ""
@@ -1451,11 +1471,7 @@ fi
 line=$(fdisk -l /dev/$dst_disk | grep "Disk identifier:")
 dst_disk_ID=${line#*x}
 if [ "$dst_disk_ID" == "$src_disk_ID" ]; then
-    qecho "Destination disk has same Disk ID as source, changing it."
-    new_id=$(od -A n -t x -N 4 /dev/urandom | tr -d " ")
-    qprintf "x\ni\n0x$new_id\nr\nw\nq\n" | fdisk /dev/$dst_disk | grep changed
-    sync
-    sleep 2
+    change_disk_id "$dst_disk" "Destination disk has same Disk ID as source, changing it."
     partprobe "/dev/$dst_disk"
     sleep 2
 
@@ -1532,13 +1548,7 @@ if [ -f $cmdline_txt ]; then
         cp $cmdline_txt ${clone}/${cmdlinedir}/cmdline.boot
         cmdline_txt=${clone}/${cmdlinedir}/cmdline.boot
     fi
-    if grep -q $src_disk_ID $cmdline_txt; then
-        qecho "Editing $cmdline_txt PARTUUID to use $dst_disk_ID"
-        sed -i "s/${src_disk_ID}/${dst_disk_ID}/" "$cmdline_txt"
-    elif [ "$edit_fstab_name" != "" ] && grep -q ${src_part_base} $cmdline_txt; then
-        qecho "Editing $cmdline_txt references from $src_part_base to $edit_fstab_name"
-        sed -i "s/${src_part_base}/$edit_fstab_name/" "$cmdline_txt"
-    fi
+    edit_disk_reference "$cmdline_txt" "$cmdline_txt"
     if ((leave_sd_usb_boot && SD_slot_boot)); then
         qecho "Copying USB cmdline.txt to SD card to set up USB boot."
         cp /${cmdlinedir}/cmdline.txt /${cmdlinedir}/cmdline.boot
@@ -1546,13 +1556,7 @@ if [ -f $cmdline_txt ]; then
     fi
 fi
 
-if grep -q $src_disk_ID $fstab; then
-    qecho "Editing $fstab PARTUUID to use $dst_disk_ID"
-    sed -i "s/${src_disk_ID}/${dst_disk_ID}/g" "$fstab"
-elif [ "$edit_fstab_name" != "" ] && grep -q ${src_part_base} $fstab; then
-    qecho "Editing $fstab references from $src_part_base to $edit_fstab_name"
-    sed -i "s/${src_part_base}/${edit_fstab_name}/" "$fstab"
-fi
+edit_disk_reference "$fstab" "$fstab"
 
 rm -f $clone/etc/udev/rules.d/70-persistent-net.rules
 
