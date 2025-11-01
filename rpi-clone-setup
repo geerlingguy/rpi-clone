@@ -27,8 +27,7 @@
 
 # shellcheck enable=require-variable-braces
 
-file_list="etc/hostname etc/hosts"
-
+file_list=("etc/hostname" "etc/hosts")
 clone=/mnt/clone
 clone_test=/tmp/clone-test
 
@@ -44,7 +43,7 @@ usage() {
     echo "   Eg:  ${PGM} rpi1"
     echo "   Modify files appropriate to set up for a new host."
     echo "   Files handled are:"
-    for file in ${file_list}; do
+    for file in "${file_list[@]}"; do
         echo "        ${file}"
     done
     echo ""
@@ -94,7 +93,7 @@ if ((testing)); then
 
     echo "**********************************************"
     echo "Testing setup: copying files to ${clone}"
-    for file in ${file_list}; do
+    for file in "${file_list[@]}"; do
         echo "    cp /${file} ${clone}/${file}"
         cp "/${file}" "${clone}/${file}"
     done
@@ -106,27 +105,25 @@ fi
 ##
 # Set /etc/hostname
 #
-cd "${clone}/etc" || exit 1
-echo "${newhost}" > hostname
+echo "${newhost}" > "${clone}/etc/hostname"
 
 #
 # Read it back to verify.
 #
 echo "${clone}/etc/hostname - set new hostname: "
-LINE=$(cat hostname)
+LINE=$(cat "${clone}/etc/hostname")
 echo -e "${LINE}\n"
 
 ##
 # Edit /etc/hosts - edit the sed command if editing fails for your /etc/hosts.
 #
-cd "${clone}/etc" || exit 1
-sed -i "s/${HOSTNAME}/${newhost}/g" hosts
+sed -i "s/${HOSTNAME}/${newhost}/g" "${clone}/etc/hosts"
 
 #
 # Read it back to verify.
 #
 echo "${clone}/etc/hosts - set new hostname \"${newhost}\" in lines: "
-LINE=$(grep "${newhost}" hosts)
+LINE=$(grep "${newhost}" "${clone}/etc/hosts")
 echo -e "${LINE}\n"
 
 ##
