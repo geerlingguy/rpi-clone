@@ -157,41 +157,39 @@ usage: $PGM sdN {-v|--verbose} {-f|--force-initialize} {-f2}
     exit 1
 }
 
-readable_MiB() {
+readable_size() {
     val=$1
+    blk_size=$2
+    format=${4:-MiB} # Default to MiB if not specified
+
     if [ "$val" == "" ]; then
         result="   ??"
     else
-        blk_size=$2
-        val=$((val / 1024 * blk_size))
+        if [ "$format" == "MB" ]; then
+            # Decimal (MB, GB, TB)
+            val=$((val / 1000 * blk_size))
 
-        if ((val < 1024 * 1024)); then
-            result=$(echo $val | awk '{ byte = $1 / 1024; printf "%.1f%s", byte, "M" }')
-        elif ((val < 1024 * 1024 * 1024)); then
-            result=$(echo $val | awk '{ byte = $1 / 1024 / 1024; printf "%.1f%s", byte, "G" }')
+            if ((val < 1000 * 1000)); then
+                result=$(echo $val | awk '{ byte = $1 / 1000; printf "%.1f%s", byte, "MB" }')
+            elif ((val < 1000 * 1000 * 1000)); then
+                result=$(echo $val | awk '{ byte = $1 / 1000 / 1000; printf "%.1f%s", byte, "GB" }')
+            else
+                result=$(echo $val | awk '{ byte = $1 / 1000 / 1000 / 1000; printf "%.1f%s", byte, "TB" }')
+            fi
         else
-            result=$(echo $val | awk '{ byte = $1 / 1024 / 1024 / 1024; printf "%.1f%s", byte, "T" }')
+            # Binary (MiB, GiB, TiB)
+            val=$((val / 1024 * blk_size))
+
+            if ((val < 1024 * 1024)); then
+                result=$(echo $val | awk '{ byte = $1 / 1024; printf "%.1f%s", byte, "M" }')
+            elif ((val < 1024 * 1024 * 1024)); then
+                result=$(echo $val | awk '{ byte = $1 / 1024 / 1024; printf "%.1f%s", byte, "G" }')
+            else
+                result=$(echo $val | awk '{ byte = $1 / 1024 / 1024 / 1024; printf "%.1f%s", byte, "T" }')
+            fi
         fi
     fi
-    printf -v "${3}" "%s" "$result"
-}
 
-readable_MB() {
-    val=$1
-    if [ "$val" == "" ]; then
-        result="   ??"
-    else
-        blk_size=$2
-        val=$((val / 1000 * blk_size))
-
-        if ((val < 1000 * 1000)); then
-            result=$(echo $val | awk '{ byte = $1 / 1000; printf "%.1f%s", byte, "MB" }')
-        elif ((val < 1000 * 1000 * 1000)); then
-            result=$(echo $val | awk '{ byte = $1 / 1000 / 1000; printf "%.1f%s", byte, "GB" }')
-        else
-            result=$(echo $val | awk '{ byte = $1 / 1000 / 1000 / 1000; printf "%.1f%s", byte, "TB" }')
-        fi
-    fi
     printf -v "${3}" "%s" "$result"
 }
 
@@ -299,8 +297,8 @@ print_partitions() {
 
     n_parts=$(((n_src_parts >= n_dst_parts) ? n_src_parts : n_dst_parts))
 
-    readable_MB $src_disk_size "512" src_size_readable
-    readable_MB $dst_disk_size "512" dst_size_readable
+    readable_size $src_disk_size "512" src_size_readable "MB"
+    readable_size $dst_disk_size "512" dst_size_readable "MB"
 
     printf "\n%-43s%s" "Booted disk: $src_disk $src_size_readable" \
         "Destination disk: $dst_disk $dst_size_readable"
@@ -309,7 +307,7 @@ print_partitions() {
     out=$'Part, Size,FS,Label         ,Part, Size,FS,Label\n'
     for ((p = 1; p <= n_parts; p++)); do
         if ((p <= n_src_parts && src_exists[p])); then
-            readable_MiB ${src_size_sectors[p]} "512" tmp
+            readable_size ${src_size_sectors[p]} "512" tmp
             printf -v sectors_readable "%7s" $tmp
             pname="$p ${src_name[p]}"
             out=${out}$"$pname,$sectors_readable,${src_fs_type[p]},${src_label[p]},"
@@ -318,7 +316,7 @@ print_partitions() {
         fi
 
         if ((p <= n_dst_parts && dst_exists[p])); then
-            readable_MiB ${dst_size_sectors[p]} "512" tmp
+            readable_size ${dst_size_sectors[p]} "512" tmp
             printf -v sectors_readable "%7s" $tmp
             out=${out}$"$p,$sectors_readable,${dst_fs_type[p]},${dst_label[p]},"
         else
@@ -361,8 +359,8 @@ print_sync_actions() {
                 src_label="/dev/${src_partition[p]}"
                 action_label="MOUNT SYNC"
             fi
-            readable_MiB ${src_used_sectors[p]} "512" used
-            readable_MiB ${dst_size_sectors[p]} "512" size
+            readable_size ${src_used_sectors[p]} "512" used
+            readable_size ${dst_size_sectors[p]} "512" size
             printf "%-22s%-14s : %s %s\n" \
                 "$src_label" "(${used} used)" "$action_label" \
                 "$flow (${size} size)"
@@ -410,10 +408,10 @@ print_image_actions() {
         fi
 
         if ((p == n_image_parts)); then
-            readable_MiB ${src_used_sectors[n_image_parts]} "512" used
+            readable_size ${src_used_sectors[n_image_parts]} "512" used
             printf "%-22s%-14s : RESIZE  %s\n" "$pname" "(${used} used)" "$action"
         elif ((src_used_sectors[$p] > 0 && p < n_image_parts)); then
-            readable_MiB ${src_used_sectors[p]} "512" used
+            readable_size ${src_used_sectors[p]} "512" used
             printf "%-22s%-14s : $action\n" "$pname" "(${used} used)"
         elif [ "$action" != "" ]; then
             printf "%-36s : $action\n" "$pname"
@@ -1224,7 +1222,7 @@ Use -U for unattended even if initializing.
         printf "%-22s : %s\n" "** FATAL **" "Initialize needed - $reason"
         printf "%-22s : %s %s %s\n" "" \
             "But destination is too small to clone" "$n_image_parts" "partitions."
-        readable_MiB $((start_sector + 7812)) "512" min_size
+        readable_size $((start_sector + 7812)) "512" min_size
         printf "%-22s : %s\n" "" "Minimum destination size required is $min_size."
         if ((n_image_parts > 2)); then
             printf "%-22s : %s\n" " " "Possible options:"
@@ -1243,7 +1241,7 @@ Use -U for unattended even if initializing.
         exit 1
     fi
 
-    readable_MiB $((last_part_sectors + 7812)) "512" image_space_readable
+    readable_size $((last_part_sectors + 7812)) "512" image_space_readable
 
     echo "== Initialize: IMAGE partition table - $reason =="
     print_image_actions
@@ -1260,7 +1258,7 @@ Use -U for unattended even if initializing.
 
     abort=0
     if ((!last_part_space)); then
-        readable_MiB $last_part_used "512" used_readable
+        readable_size $last_part_used "512" used_readable
         printf "%-22s : %s\n" "** WARNING **" \
             "Destination last partition resize to $image_space_readable"
         printf "%-22s : %s\n" "" "  is too small to hold source used $used_readable."
