@@ -24,7 +24,7 @@ grub_auto=1
 PGM=$(basename $0)
 setup_command="$PGM-setup"
 
-rsync_options="--force -rltWDEHXAgoptx"
+rsync_options="--force -rltWDEHXAgopx"
 
 if [ $(id -u) != 0 ]; then
     echo -e "$PGM needs to be run as root.\n"
