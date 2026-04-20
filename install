@@ -5,7 +5,7 @@
 # Downloads and installs rpi-clone and rpi-clone-setup into /usr/local/sbin
 #
 # Command to use to install rpi-clone:
-#	   curl https://raw.githubusercontent.com/geerlingguy/rpi-clone/master/install | sudo bash
+#    curl https://raw.githubusercontent.com/geerlingguy/rpi-clone/master/install | sudo bash
 #
 # rpi-clone is Copyright (c) 2018-2019 Bill Wilson
 #
@@ -17,54 +17,62 @@
 # This updated code is located in a fork of Bill Willsons git repository
 # at https://github.com/geerlingguy/rpi-clone
 
+# shellcheck enable=require-variable-braces
+
 set -uo pipefail
 
 readonly PACKAGE="rpi-clone"
-readonly DOWNLOAD_REPOSITORY="https://raw.githubusercontent.com/geerlingguy/rpi-clone/master"
-readonly FILES_2_DOWNLOAD"=rpi-clone rpi-clone-setup"
-readonly TMP_DIR=$(mktemp -d)
+readonly GITHUB_USER="geerlingguy"
+readonly DOWNLOAD_REPOSITORY="https://raw.githubusercontent.com/${GITHUB_USER}/${PACKAGE}/master"
+readonly FILES_TO_DOWNLOAD=("rpi-clone" "rpi-clone-setup")
 readonly DEFAULT_INSTALLATION_DIR="/usr/local/sbin"
 
-pwd=$PWD
-trap "{ cd $pwd; rmdir $TMP_DIR &>/dev/null; }" SIGINT SIGTERM EXIT
-cd $TMP_DIR
+TMP_DIR=$(mktemp -d)
+OLD_PWD=${PWD}
 
-installDir="${1:-$DEFAULT_INSTALLATION_DIR}"
+trap 'cd "${OLD_PWD}"; rmdir "${TMP_DIR}" &>/dev/null' SIGINT SIGTERM EXIT
 
-if [[ ! -d $installDir ]]; then
-    echo "Installation directory $installDir not found"
+cd "${TMP_DIR}" || exit 1
+
+installDir="${1:-${DEFAULT_INSTALLATION_DIR}}"
+
+if [[ ! -d "${installDir}" ]]; then
+    echo "Installation directory ${installDir} not found"
     echo "Pass a valid installation directory as a parameter to $0"
     exit 1
 fi
 
-echo "Installing $PACKAGE into $installDir ..."
+echo "Installing ${PACKAGE} into ${installDir}..."
 
-for file in $FILES_2_DOWNLOAD; do
-    echo -n "Downloading $file from $DOWNLOAD_REPOSITORY/$file ... "
-    http_code=$(curl -w "%{http_code}" -L -s $DOWNLOAD_REPOSITORY/$file -o $file)
-    (($?)) && {
+for file in "${FILES_TO_DOWNLOAD[@]}"; do
+    echo -n "Downloading ${file} from ${DOWNLOAD_REPOSITORY}/${file}..."
+
+    if ! http_code=$(curl -w "%{http_code}" -L -s "${DOWNLOAD_REPOSITORY}/${file}" -o "${file}"); then
         echo "Curl failed"
         exit 1
-    }
-    [[ $http_code != 200 ]] && {
-        echo "http request failed with $http_code"
+    fi
+
+    if [[ "${http_code}" != 200 ]]; then
+        echo "http request failed with ${http_code}"
         exit 1
-    }
+    fi
+
     echo "done"
-    echo -n "Installing $file into $installDir ... "
-    sudo chmod +x $file
-    (($?)) && {
+
+    echo -n "Installing ${file} into ${installDir}..."
+
+    if ! sudo chmod +x "${file}"; then
         echo "chmod failed"
         exit 1
-    }
-    sudo mv $file $installDir
-    (($?)) && {
+    fi
+
+    if ! sudo mv "${file}" "${installDir}"; then
         echo "mv failed"
         exit 1
-    }
-    echo "done"
+    fi
 
+    echo "done"
 done
 
-echo "$PACKAGE installed"
-cd $pwd
+echo "${PACKAGE} installed"
+cd "${OLD_PWD}" || exit 1
