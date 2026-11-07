@@ -2,7 +2,7 @@
 
 # Simple installer for rpi-clone
 #
-# Downloads and installs rpi-clone and rpi-clone-setup into /usr/local/sbin
+# Downloads and installs rpi-clone, rpi-clone-setup and rpi-clone-tui into /usr/local/sbin
 #
 # Command to use to install rpi-clone:
 #	   curl https://raw.githubusercontent.com/geerlingguy/rpi-clone/master/install | sudo bash
@@ -21,7 +21,7 @@ set -uo pipefail
 
 readonly PACKAGE="rpi-clone"
 readonly DOWNLOAD_REPOSITORY="https://raw.githubusercontent.com/geerlingguy/rpi-clone/master"
-readonly FILES_2_DOWNLOAD"=rpi-clone rpi-clone-setup"
+readonly FILES_2_DOWNLOAD="rpi-clone rpi-clone-setup rpi-clone-tui"
 readonly TMP_DIR=$(mktemp -d)
 readonly DEFAULT_INSTALLATION_DIR="/usr/local/sbin"
 
